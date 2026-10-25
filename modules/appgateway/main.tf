@@ -6,30 +6,9 @@ resource "azurerm_public_ip" "appgw" {
   sku                 = "Standard"
 }
 
-# Self-signed certificaat genereren voor Application Gateway
-resource "tls_private_key" "appgw" {
-  algorithm = "RSA"
-  rsa_bits  = 2048
-}
+# Key Vault voor het certificaat
+data "azurerm_client_config" "current" {}
 
-resource "tls_self_signed_cert" "appgw" {
-  private_key_pem = tls_private_key.appgw.private_key_pem
-
-  subject {
-    common_name  = "appgw-zerotrust.local"
-    organization = "Zero Trust Lab"
-  }
-
-  validity_period_hours = 8760
-
-  allowed_uses = [
-    "key_encipherment",
-    "digital_signature",
-    "server_auth",
-  ]
-}
-
-# Key Vault voor het opslaan van het certificaat
 resource "azurerm_key_vault" "appgw" {
   name                       = "kv-zt-${var.random_suffix}"
   location                   = var.location
@@ -46,19 +25,53 @@ resource "azurerm_key_vault" "appgw" {
     secret_permissions      = ["Get", "List", "Set", "Delete", "Purge"]
     certificate_permissions = ["Get", "List", "Create", "Import", "Delete", "Purge"]
   }
+
+  network_acls {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
 }
 
-data "azurerm_client_config" "current" {}
-
+# Self-signed certificaat direct in Key Vault genereren
 resource "azurerm_key_vault_certificate" "appgw" {
   name         = "appgw-ssl-cert"
   key_vault_id = azurerm_key_vault.appgw.id
 
-  certificate {
-    contents = base64encode(join("", [
-      tls_private_key.appgw.private_key_pem,
-      tls_self_signed_cert.appgw.cert_pem,
-    ]))
+  certificate_policy {
+    issuer_parameters {
+      name = "Self"
+    }
+
+    key_properties {
+      exportable = true
+      key_size   = 2048
+      key_type   = "RSA"
+      reuse_key  = true
+    }
+
+    secret_properties {
+      content_type = "application/x-pkcs12"
+    }
+
+    x509_certificate_properties {
+      subject            = "CN=appgw-zerotrust.local"
+      validity_in_months = 12
+
+      key_usage = [
+        "digitalSignature",
+        "keyEncipherment",
+      ]
+    }
+
+    lifetime_action {
+      action {
+        action_type = "AutoRenew"
+      }
+
+      trigger {
+        days_before_expiry = 30
+      }
+    }
   }
 }
 
@@ -117,8 +130,8 @@ resource "azurerm_application_gateway" "main" {
   backend_http_settings {
     name                  = "http-settings"
     cookie_based_affinity = "Disabled"
-    port                  = 443
-    protocol              = "Https"
+    port                  = 80
+    protocol              = "Http"
     request_timeout       = 30
   }
 
@@ -144,12 +157,33 @@ resource "azurerm_application_gateway" "main" {
     backend_http_settings_name = "http-settings"
   }
 
-  waf_configuration {
-    enabled          = true
-    firewall_mode    = "Prevention"
-    rule_set_type    = "OWASP"
-    rule_set_version = "3.2"
+  ssl_policy {
+    policy_type = "Predefined"
+    policy_name = "AppGwSslPolicy20220101"
   }
 
+  firewall_policy_id = azurerm_web_application_firewall_policy.main.id
+
   depends_on = [azurerm_key_vault_access_policy.appgw_identity]
+}
+
+resource "azurerm_web_application_firewall_policy" "main" {
+  name                = "waf-policy-zerotrust"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+
+  policy_settings {
+    enabled                     = true
+    mode                        = "Prevention"
+    request_body_check          = true
+    file_upload_limit_in_mb     = 100
+    max_request_body_size_in_kb = 128
+  }
+
+  managed_rules {
+    managed_rule_set {
+      type    = "OWASP"
+      version = "3.2"
+    }
+  }
 }

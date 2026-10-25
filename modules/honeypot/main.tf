@@ -15,7 +15,7 @@ resource "azurerm_linux_virtual_machine" "honeypot" {
   name                            = "vm-honeypot"
   location                        = var.location
   resource_group_name             = var.resource_group_name
-  size                            = "Standard_B1s"
+  size                            = var.vm_size
   admin_username                  = var.admin_username
   admin_password                  = var.admin_password
   disable_password_authentication = false
@@ -52,6 +52,15 @@ resource "azurerm_linux_virtual_machine" "honeypot" {
     # Decoy account aanmaken
     useradd -m -s /bin/bash decoyadmin
     echo "decoyadmin:HoneyP0t2024!" | chpasswd
+
+    # Wazuh agent installeren
+    curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+    echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee /etc/apt/sources.list.d/wazuh.list
+    apt-get update
+    WAZUH_MANAGER="${var.wazuh_manager_ip}" apt-get install -y wazuh-agent
+    systemctl daemon-reload
+    systemctl enable wazuh-agent
+    systemctl start wazuh-agent
   EOF
   )
 }
@@ -75,20 +84,3 @@ resource "azurerm_storage_account" "honeypot" {
   }
 }
 
-resource "azurerm_monitor_diagnostic_setting" "honeypot_storage" {
-  name                       = "diag-honeypot-storage"
-  target_resource_id         = "${azurerm_storage_account.honeypot.id}/blobServices/default"
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log {
-    category = "StorageRead"
-  }
-
-  enabled_log {
-    category = "StorageWrite"
-  }
-
-  metric {
-    category = "Transaction"
-  }
-}

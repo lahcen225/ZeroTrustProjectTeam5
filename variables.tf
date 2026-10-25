@@ -5,7 +5,7 @@ variable "resource_group_name" {
 
 variable "location" {
   type    = string
-  default = "West Europe"
+  default = "Sweden Central"
 }
 
 variable "vnet_address_space" {
@@ -35,5 +35,5 @@ variable "mysql_admin_password" {
 
 variable "vm_size" {
   type    = string
-  default = "Standard_B2s"
+  default = "Standard_B2s_v2"
 }

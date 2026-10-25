@@ -25,3 +25,7 @@ output "subnet_database_id" {
 output "subnet_honeypot_id" {
   value = azurerm_subnet.honeypot.id
 }
+
+output "subnet_wazuh_id" {
+  value = azurerm_subnet.wazuh.id
+}

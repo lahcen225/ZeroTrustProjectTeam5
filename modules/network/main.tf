@@ -51,6 +51,15 @@ resource "azurerm_subnet" "honeypot" {
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = ["10.0.2.64/26"]
+  service_endpoints    = ["Microsoft.Storage"]
+}
+
+# --- Private Subnet: Wazuh ---
+resource "azurerm_subnet" "wazuh" {
+  name                 = "snet-wazuh"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.3.0/26"]
 }
 
 # --- NSG: App Subnet ---
@@ -60,13 +69,13 @@ resource "azurerm_network_security_group" "app" {
   resource_group_name = var.resource_group_name
 
   security_rule {
-    name                       = "Allow-HTTPS-From-AppGW"
+    name                       = "Allow-HTTP-From-AppGW"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "443"
+    destination_port_range     = "80"
     source_address_prefix      = "10.0.0.64/26"
     destination_address_prefix = "10.0.1.0/24"
   }
@@ -183,4 +192,80 @@ resource "azurerm_network_security_group" "honeypot" {
 resource "azurerm_subnet_network_security_group_association" "honeypot" {
   subnet_id                 = azurerm_subnet.honeypot.id
   network_security_group_id = azurerm_network_security_group.honeypot.id
+}
+
+# --- NSG: Wazuh Subnet ---
+resource "azurerm_network_security_group" "wazuh" {
+  name                = "nsg-wazuh"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+
+  # Wazuh agent registratie (port 1514/1515)
+  security_rule {
+    name                       = "Allow-Wazuh-Agent-Registration"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["1514", "1515"]
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "10.0.3.0/26"
+  }
+
+  # Wazuh Dashboard (port 443)
+  security_rule {
+    name                       = "Allow-Wazuh-Dashboard"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "10.0.3.0/26"
+  }
+
+  # SSH via Bastion
+  security_rule {
+    name                       = "Allow-SSH-From-Bastion"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "10.0.0.0/26"
+    destination_address_prefix = "10.0.3.0/26"
+  }
+
+  # Wazuh Indexer API (port 9200)
+  security_rule {
+    name                       = "Allow-Wazuh-Indexer"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "9200"
+    source_address_prefix      = "10.0.3.0/26"
+    destination_address_prefix = "10.0.3.0/26"
+  }
+
+  security_rule {
+    name                       = "Deny-All-Inbound"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "wazuh" {
+  subnet_id                 = azurerm_subnet.wazuh.id
+  network_security_group_id = azurerm_network_security_group.wazuh.id
 }

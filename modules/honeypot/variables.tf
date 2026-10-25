@@ -19,6 +19,10 @@ variable "admin_password" {
   sensitive = true
 }
 
-variable "log_analytics_workspace_id" {
+variable "vm_size" {
+  type = string
+}
+
+variable "wazuh_manager_ip" {
   type = string
 }
