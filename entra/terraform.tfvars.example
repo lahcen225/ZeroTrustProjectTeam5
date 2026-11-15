@@ -1,0 +1,16 @@
+# Kopieer naar terraform.tfvars. NIET committen.
+tenant_id = "00000000-0000-0000-0000-000000000000" # tenant van de docent
+
+# Controleer in admin.microsoft.com > Billing > Your products
+heeft_p1 = true
+heeft_p2 = false
+
+# Eerst report-only, pas na testen op "enabled"
+ca_state = "enabledForReportingButNotEnforced"
+
+toegestane_landen = ["BE"]
+
+app_redirect_uris = [
+  "http://localhost:3000/auth/callback",
+  # "https://<publiek-ip-of-dns-van-application-gateway>/auth/callback",
+]

@@ -1,0 +1,16 @@
+# Kopieer naar terraform.tfvars. NIET committen.
+tenant_id       = "0bff66c5-45db-46ed-8b81-87959e069b90" # tenant van de SCHOOL (PXL)
+subscription_id = "00000000-0000-0000-0000-000000000000" # Azure for Students
+
+admin_password       = "CHANGE-ME-StrongP@ssw0rd!"
+mysql_admin_password = "CHANGE-ME-MySqlP@ss2024!"
+
+key_vault_naam = "kv-securemed2-12300882" # wereldwijd uniek; nieuwe naam (de oude zit in soft-delete)
+
+# Schoolaccounts (UPN = studentnummer, niet het mailadres)
+team = {
+  ryan   = { upn = "12403253@student.pxl.be", taken = ["lezer", "netwerk", "vm-admin"] }
+  alan   = { upn = "12300882@student.pxl.be", taken = ["lezer", "iam", "vm-user", "app-deploy"] }
+  rik    = { upn = "12300910@student.pxl.be", taken = ["lezer", "soc", "vm-user"] }
+  lahcen = { upn = "12100822@student.pxl.be", taken = ["lezer", "keyvault", "compliance"] }
+}

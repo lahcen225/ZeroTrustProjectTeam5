@@ -1,7 +1,12 @@
-.terraform/
+# Terraform state bevat wachtwoorden en secrets: NOOIT op GitHub
 *.tfstate
 *.tfstate.*
-*.tfplan
-terraform.tfvars
+.terraform/
 crash.log
+*.tfplan
+*.tfvars
+!*.tfvars.example
 .env
+
+# Oude IAM-code (vervangen door infra/modules/iam); state wijst nog naar rg-zerotrust van Lahcen
+azure/

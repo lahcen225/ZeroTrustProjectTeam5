@@ -1,0 +1,8 @@
+# Altijd LF: scripts gaan via az vm run-command naar Linux (CRLF breekt bash)
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.tf   text eol=lf
+*.hcl  text eol=lf
+*.md   text eol=lf
+*.example text eol=lf
+*.py   text eol=lf
